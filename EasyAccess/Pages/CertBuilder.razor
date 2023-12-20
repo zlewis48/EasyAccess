@@ -1,0 +1,44 @@
+﻿@page "/cert-builder"
+@using EasyAccess.Helpers;
+@using System.Security.Cryptography.X509Certificates;
+
+<h3>CertBuilder</h3>
+<div>
+    <input @bind="CN" placeholder="CN=www.example.com" />
+    <br />
+    <input @bind="O" placeholder="O=Example Inc." />
+    <br />
+    <input @bind="OU" placeholder="OU=IT Department" />
+    <br />
+    <input @bind="L" placeholder="L=New York" />
+    <br />
+    <input @bind="ST" placeholder="ST=New York" />
+    <br />
+    <input @bind="C" placeholder="C=US" />
+    <br />
+
+    <button @onclick="CreateCert">Create Cert</button>
+</div>
+
+<h3>Results Window</h3>
+<textarea @bind="ResultString" rows="10" cols="100"></textarea>
+<br />
+
+@code {
+    string CN { get; set; }
+    string O { get; set; }
+    string OU { get; set; }
+    string L { get; set; }
+    string ST { get; set; }
+    string C { get; set; }
+    string ResultString { get; set; }
+
+    public void CreateCert()
+    {
+        //var subject = new X500DistinguishedName($"CN={CN}, O={O}, OU={OU}, L={L}, ST={ST}, C={C}").ToString();
+        var cert = CertificateGenerator.CreateSelfSignedCertificate($"CN={CN}", "TestPassword");
+        
+        ResultString = CertificateGenerator.ExportCertificateToPEM(cert);
+    }
+
+}

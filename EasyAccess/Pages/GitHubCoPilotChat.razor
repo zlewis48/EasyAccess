@@ -1,0 +1,66 @@
+﻿@page "/GitHubCopilotChat"
+
+<h3>GitHub Copilot Chat</h3>
+
+<div>
+    <p>Welcome to the GitHub Copilot Chat. Please enter your code or technical questions below:</p>
+    <textarea @bind="UserInput" rows="10" cols="100"></textarea>
+    <br />
+    <button @onclick="SubmitQuestion">Submit</button>
+</div>
+
+<h3>GitHub Copilot Response</h3>
+<textarea @bind="CopilotResponse" rows="10" cols="100" readonly></textarea>
+
+@code {
+    string UserInput { get; set; }
+    string CopilotResponse { get; set; }
+    string Username { get; set; }
+    string Password { get; set; }
+
+    public async Task SubmitQuestion()
+    {
+        // Here you would call the GitHub Copilot API to get a response
+       // For the purpose of this example, we'll just echo the user's input
+      //  var client = new GitHubClient(new ProductHeaderValue("MyApp"));
+     //   var basicAuth = new Credentials(Username, Password); // NOTE: not real credentials
+     //   client.Credentials = basicAuth;
+
+        // Assuming there is a method in the GitHub API to ask questions
+     //   var result = await client.Copilot.AskQuestion(UserInput);
+       // CopilotResponse = result;
+
+        CopilotResponse = UserInput;
+    }
+
+    public class GitHubClient
+    {
+        private readonly HttpClient _client;
+
+        public GitHubClient()
+        {
+            _client = new HttpClient
+            {
+                BaseAddress = new Uri("http://localhost:5000/") // Replace with the address of the service or container
+            };
+        }
+
+        public async Task<string> AskQuestion(string question)
+        {
+            var response = await _client.GetAsync($"api/copilot?question={question}");
+
+            if (response.IsSuccessStatusCode)
+            {
+                return await response.Content.ReadAsStringAsync();
+            }
+
+            throw new Exception($"Failed to ask question: {response.ReasonPhrase}");
+        }
+    }
+}
+
+
+
+
+
+

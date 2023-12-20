@@ -1,0 +1,128 @@
+﻿@page "/client-assertion"
+@using System.Text
+@using System.IdentityModel.Tokens.Jwt
+@using Microsoft.AspNetCore.Components
+@using System.Security.Claims;
+@using Microsoft.IdentityModel.Tokens;
+@using System.Security.Cryptography.X509Certificates;
+
+@inject NavigationManager NavigationManager
+
+<h3>Create JWT Client Assertion</h3>
+<div>
+    <input @bind="ClientId" placeholder="Client ID" />
+    <br />
+    <input @bind="Issuer" placeholder="Issuer" />
+    <br />
+    <input @bind="Scope" placeholder="Scope" />
+    <br />
+    <input @bind="Audience" placeholder="Audience" />
+    <br />
+    <input @bind="Policy" placeholder="Policy" />
+    <br />
+    <input @bind="UserId" placeholder="User Id" />
+    <br />
+    <input @bind="ClientCert" placeholder="Client Certificate" />
+    <br />
+    <label for="expiresIn">Expires In (minutes): @ExpiresIn</label>
+    <input type="range" class="form-control-range" @bind="ExpiresIn" @oninput="UpdateLabel" min="1" max="60" />
+    <br />
+
+    <button @onclick="CreateJwtClientAssertion">Create JWT</button>
+</div>
+
+<h3>Results Window</h3>
+<textarea @bind="ResultString" rows="10" cols="100"></textarea>
+<br />
+<button @onclick="EncodeBase64String">Encode</button>
+<button @onclick="DecodeBase64String">Decode</button>
+<button @onclick="Clear">Clear</button>
+
+@code {
+    string ClientId { get; set; }
+    string Audience { get; set; }
+    string JwtClientAssertion { get; set; }
+    string ResultString { get; set; }
+    int ExpiresIn { get; set; } = 15;
+    string Issuer { get; set; }
+    string Policy { get; set; }
+    string Scope { get; set; }
+    string UserId { get; set; }
+    string ClientCert { get; set; }
+
+    private void UpdateLabel(ChangeEventArgs e)
+    {
+        if (int.TryParse(e.Value.ToString(), out int newValue))
+        {
+            ExpiresIn = newValue;
+        }
+    }
+
+    void CreateJwtClientAssertion()
+    {
+        try{
+
+            var securityKey = new X509SecurityKey(new X509Certificate2(Convert.FromBase64String(ClientCert)));
+            var credentials = new SigningCredentials(securityKey, SecurityAlgorithms.RsaSha256);
+
+            var policyNames = new List<string> { "Policy1", "Policy2", "Policy3" };
+            var policyClaims = policyNames.Select(policyName => new Claim("policies", policyName)).ToList();
+
+            var claims = new List<Claim>
+            {
+                new Claim("iss", Issuer),
+                //new Claim("sub", subject),
+                new Claim("aud", Audience),
+                new Claim("scope", Scope),
+                new Claim("userid", UserId),
+                new Claim("policy", Policy) // Add this line to add a type to claims
+            };
+
+            var token = new JwtSecurityToken(
+                Issuer,
+                Audience,
+                claims,
+                expires: DateTime.UtcNow.AddMinutes(ExpiresIn),
+                signingCredentials: credentials);
+
+            var tokenHandler = new JwtSecurityTokenHandler();
+            ResultString = tokenHandler.WriteToken(token);
+        }
+        catch (Exception ex)
+        {
+            ResultString = $"Error creating the JWT: {ex.Message}";
+        }
+
+    }
+
+    void DecodeBase64String()
+    {
+        try
+        {
+            ResultString = Encoding.UTF8.GetString(Convert.FromBase64String(ResultString));
+        }
+        catch (Exception ex)
+        {
+            ResultString = $"Error decoding the base64 string: {ex.Message} {Environment.NewLine} {ResultString}";
+        }
+    }
+
+    void EncodeBase64String()
+    {
+        try
+        {
+            ResultString = Convert.ToBase64String(Encoding.UTF8.GetBytes(ResultString));
+        }
+        catch (Exception ex)
+        {
+            ResultString = $"Error encoding the base64 string: {ex.Message} {Environment.NewLine} {ResultString}";
+        }
+    }
+
+    void Clear()
+    {
+        ResultString = string.Empty;
+    }
+
+    //void Copy() => Clipboard.SetTextAsync(ResultString);
+}

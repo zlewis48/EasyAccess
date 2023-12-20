@@ -1,0 +1,63 @@
+﻿@page "/tasklist"
+@using EasyAccess.Data;
+@using EasyAccess.Services;
+@inject ITaskService TaskService
+
+<h3>Task List</h3>
+
+<input @bind="NewTask.Name" placeholder="Task Name" />
+<input @bind="NewTask.Details" placeholder="Task Details" />
+<button @onclick="AddTask">Add Task</button>
+
+<table>
+    <thead>
+        <tr>
+            <th>Task Name</th>
+            <th>Task Details</th>
+            <th>Created Date</th>
+            <th>Updated Date</th>
+            <th>Actions</th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var task in Tasks)
+        {
+            <tr>
+                <td>@task.Name</td>
+                <td>@task.Details</td>
+                <td>@task.CreatedDate</td>
+                <td>@task.UpdatedDate</td>
+                <td>
+                    <button @onclick="() => UpdateTask(task)">Update</button>
+                    <button @onclick="() => DeleteTask(task)">Delete</button>
+                </td>
+            </tr>
+        }
+    </tbody>
+</table>
+
+@code {
+    List<TaskModel> Tasks { get; set; } = new List<TaskModel>();
+    TaskModel NewTask { get; set; } = new TaskModel();
+
+    protected override async Task OnInitializedAsync()
+    {
+        Tasks = await TaskService.GetTasks();
+    }
+
+    void AddTask()
+    {
+        TaskService.AddTask(NewTask);
+        NewTask = new TaskModel();
+    }
+
+    void UpdateTask(TaskModel task)
+    {
+        TaskService.UpdateTask(task);
+    }
+
+    void DeleteTask(TaskModel task)
+    {
+        TaskService.DeleteTask(task);
+    }
+}
