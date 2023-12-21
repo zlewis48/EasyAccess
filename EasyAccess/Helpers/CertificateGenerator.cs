@@ -37,9 +37,40 @@ namespace EasyAccess.Helpers
             }
         }
 
-        public static void ExportCertificateToFile(X509Certificate2 certificate, string filePath)
+        public static X509Certificate2 CreateSelfSignedCertificate(X500DistinguishedName subject, string password)
         {
-            File.WriteAllBytes(filePath, certificate.Export(X509ContentType.Pfx, "YourPassword"));
+            using (RSA rsa = RSA.Create(2048))
+            {
+                // Create a certificate request with the RSA key and specified subject
+                var request = new CertificateRequest(
+                    subject,
+                    rsa,
+                    HashAlgorithmName.SHA256,
+                    RSASignaturePadding.Pkcs1);
+
+                // Set the certificate validity period
+                var notBefore = DateTimeOffset.Now;
+                var notAfter = notBefore.AddYears(1);
+
+                // Create a self-signed certificate
+                var certificate = request.CreateSelfSigned(notBefore, notAfter);
+
+                // Export the certificate with the private key to a PFX (PKCS #12) format byte array
+                // The certificate is protected with the specified password
+                var certificateBytes = certificate.Export(X509ContentType.Pfx, password);
+
+                // Create a new X509Certificate2 object from the exported bytes
+                // The certificate includes the private key and is flagged as exportable
+                return new X509Certificate2(
+                    certificateBytes,
+                    password,
+                    X509KeyStorageFlags.Exportable);
+            }
+        }
+
+        public static void ExportCertificateToFile(X509Certificate2 certificate, X509ContentType contentTtype, string filePath, string secret)
+        {
+            File.WriteAllBytes(filePath, certificate.Export(contentTtype, secret));
         }
 
         public static string ExportCertificateToPEM(X509Certificate2 certificate)

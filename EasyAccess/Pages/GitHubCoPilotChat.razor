@@ -1,43 +1,38 @@
-﻿@page "/GitHubCopilotChat"
+﻿@page "/gpt/chat"
+@using System.Text;
 
-<h3>GitHub Copilot Chat</h3>
+<h3>Gpt Chat</h3>
 
 <div>
-    <p>Welcome to the GitHub Copilot Chat. Please enter your code or technical questions below:</p>
-    <textarea @bind="UserInput" rows="10" cols="100"></textarea>
+    <p>Welcome to Gpt Chat. Please enter your question:</p>
+    <textarea @bind="UserInput" rows="10" cols="100" placeholder="Chat Relay Only"></textarea>
     <br />
     <button @onclick="SubmitQuestion">Submit</button>
 </div>
 
-<h3>GitHub Copilot Response</h3>
-<textarea @bind="CopilotResponse" rows="10" cols="100" readonly></textarea>
+<h3>Chat Response</h3>
+<textarea @bind="GptChatResponse" rows="10" cols="100" readonly></textarea>
 
 @code {
     string UserInput { get; set; }
-    string CopilotResponse { get; set; }
-    string Username { get; set; }
-    string Password { get; set; }
+    string GptChatResponse { get; set; }
 
     public async Task SubmitQuestion()
     {
-        // Here you would call the GitHub Copilot API to get a response
-       // For the purpose of this example, we'll just echo the user's input
-      //  var client = new GitHubClient(new ProductHeaderValue("MyApp"));
-     //   var basicAuth = new Credentials(Username, Password); // NOTE: not real credentials
-     //   client.Credentials = basicAuth;
 
-        // Assuming there is a method in the GitHub API to ask questions
-     //   var result = await client.Copilot.AskQuestion(UserInput);
-       // CopilotResponse = result;
-
-        CopilotResponse = UserInput;
+        GptChatResponse = UserInput;
     }
 
-    public class GitHubClient
+    public interface IGptChatClient
+    {
+        Task<string> GetResponseAsync(string prompt);
+    }
+
+    public class CopilotChatClient : IGptChatClient
     {
         private readonly HttpClient _client;
 
-        public GitHubClient()
+        public CopilotChatClient()
         {
             _client = new HttpClient
             {
@@ -45,9 +40,9 @@
             };
         }
 
-        public async Task<string> AskQuestion(string question)
+        public async Task<string> GetResponseAsync(string prompt)
         {
-            var response = await _client.GetAsync($"api/copilot?question={question}");
+            var response = await _client.GetAsync($"api/copilot?question={prompt}");
 
             if (response.IsSuccessStatusCode)
             {
@@ -57,6 +52,36 @@
             throw new Exception($"Failed to ask question: {response.ReasonPhrase}");
         }
     }
+
+    public class OpenAIChatGPTClient : IGptChatClient
+    {
+        private readonly HttpClient _httpClient;
+        private readonly string _apiKey;
+
+        public OpenAIChatGPTClient(string apiKey)
+        {
+            _httpClient = new HttpClient();
+            _apiKey = apiKey;
+        }
+
+        public async Task<string> GetResponseAsync(string prompt)
+        {
+            var requestContent = new StringContent($"{{\"prompt\": \"{prompt}\", \"max_tokens\": 100}}", Encoding.UTF8, "application/json");
+
+            using (var requestMessage = new HttpRequestMessage(HttpMethod.Post, "https://api.openai.com/v1/engines/gpt-4/completions"))
+            {
+                requestMessage.Headers.Add("Authorization", $"Bearer {_apiKey}");
+                requestMessage.Content = requestContent;
+
+                var response = await _httpClient.SendAsync(requestMessage);
+                response.EnsureSuccessStatusCode();
+
+                var responseContent = await response.Content.ReadAsStringAsync();
+                return responseContent; // You would probably want to deserialize this JSON response
+            }
+        }
+    }
+
 }
 
 

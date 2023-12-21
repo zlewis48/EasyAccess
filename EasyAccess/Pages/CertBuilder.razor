@@ -4,20 +4,32 @@
 
 <h3>CertBuilder</h3>
 <div>
-    <input @bind="CN" placeholder="CN=www.example.com" />
+    <label for="CN">Common Name (CN):</label>
+    <input id="CN" @bind="CN" placeholder="www.example.com" />
     <br />
-    <input @bind="O" placeholder="O=Example Inc." />
+    <label for="O">Organization (O):</label>
+    <input id="O" @bind="O" placeholder="Example Inc." />
     <br />
-    <input @bind="OU" placeholder="OU=IT Department" />
+    <label for="OU">Organizational Unit (OU):</label>
+    <input id="OU" @bind="OU" placeholder="IT Department" />
     <br />
-    <input @bind="L" placeholder="L=New York" />
+    <label for="L">Locality (L):</label>
+    <input id="L" @bind="L" placeholder="New York" />
     <br />
-    <input @bind="ST" placeholder="ST=New York" />
+    <label for="ST">State (ST):</label>
+    <input id="ST" @bind="ST" placeholder="New York" />
     <br />
-    <input @bind="C" placeholder="C=US" />
+    <label for="C">Country (C):</label>
+    <input id="C" @bind="C" placeholder="US" />
+    <br />
+    <label for="Password">Password:</label>
+    <input id="Password" @bind="Password" placeholder="Password" />
     <br />
 
     <button @onclick="CreateCert">Create Cert</button>
+    <button @onclick="SaveCert">Save Cert</button>
+    <button @onclick="SavePem">Save Pem</button>
+
 </div>
 
 <h3>Results Window</h3>
@@ -25,20 +37,167 @@
 <br />
 
 @code {
-    string CN { get; set; }
-    string O { get; set; }
-    string OU { get; set; }
+    string CN { get; set; } = "www.enter.your.common.name.here.com";
+    string O { get; set; } = "Easy Access";
+    string OU { get; set; } = "Easy Access";
     string L { get; set; }
     string ST { get; set; }
     string C { get; set; }
     string ResultString { get; set; }
+    string Password { get; set; } = "password";
 
     public void CreateCert()
     {
         //var subject = new X500DistinguishedName($"CN={CN}, O={O}, OU={OU}, L={L}, ST={ST}, C={C}").ToString();
-        var cert = CertificateGenerator.CreateSelfSignedCertificate($"CN={CN}", "TestPassword");
-        
+        var cert = CertificateGenerator.CreateSelfSignedCertificate($"CN={CN}", Password);
+
         ResultString = CertificateGenerator.ExportCertificateToPEM(cert);
     }
 
+    public void SaveCert()
+    {
+        Save(X509ContentType.Cert);
+    }
+
+    public void SavePem()
+    {
+        Save(X509ContentType.Pfx);
+    }
+
+    public void Save(X509ContentType contentType)
+    {
+        var subject = new CertSubjectBuilder()
+            .SetCommonName(CN)
+            .SetOrganization(O)
+            .SetOrganizationalUnit(OU)
+            .SetLocality(L)
+            .SetState(ST)
+            .SetCountry(C);
+
+        var certBuilder = new X509Certificate2CertBuilder()
+        {
+            Type = contentType,
+            Password = Password,
+            Subject = subject.Build(),
+            FilePath = @"C:\proj\certs\cert-" + Guid.NewGuid() + "." + contentType.ToString().ToLower()
+        };
+
+        var cert = certBuilder.Build(subject);
+
+        //var cert = CertificateGenerator.CreateSelfSignedCertificate($"CN={CN}", Password);
+
+        // var cert = CertificateGenerator.CreateSelfSignedCertificate($"CN={CN}", Password);
+        //filePath = @"C:\proj\certs\cert-" + Guid.NewGuid() + "." + contentType.ToString().ToLower()
+        CertificateGenerator.ExportCertificateToFile(cert, contentType, certBuilder.FilePath, Password);
+    }
+
+    public interface ICertBuilder 
+    {
+        X509ContentType Type { get; set; }
+        string Password { get; set; }
+        X500DistinguishedName Subject { get; set; }
+        string FilePath { get; set; }
+        X509Certificate2 Build(ICertSubjectBuilder certBuilder);
+    }
+
+    public class X509Certificate2CertBuilder : ICertBuilder
+    {
+        public X509ContentType Type { get; set; }
+        public string Password { get; set; }
+        public X500DistinguishedName Subject { get; set; }
+        public string FilePath { get; set; }
+
+        private X509Certificate2 cert;
+
+        public X509Certificate2 Build(ICertSubjectBuilder certBuilder)
+        {
+            if (cert != null)
+                return cert;
+
+            var subject = certBuilder.Build();
+
+            cert = CertificateGenerator.CreateSelfSignedCertificate(subject, Password);
+            return cert;
+        }
+    }
+
+    public interface ICertSubjectBuilder
+    {
+        ICertSubjectBuilder SetCommonName(string commonName);
+        ICertSubjectBuilder SetOrganization(string organization);
+        ICertSubjectBuilder SetOrganizationalUnit(string organizationalUnit);
+        ICertSubjectBuilder SetLocality(string locality);
+        ICertSubjectBuilder SetState(string state);
+        ICertSubjectBuilder SetCountry(string country);
+        X500DistinguishedName Build();
+    }
+
+    public class CertSubjectBuilder : ICertSubjectBuilder
+    {
+        private string _commonName;
+        private string _organization;
+        private string _organizationalUnit;
+        private string _locality;
+        private string _state;
+        private string _country;
+
+        public ICertSubjectBuilder SetCommonName(string commonName)
+        {
+            _commonName = commonName;
+            return this;
+        }
+
+        public ICertSubjectBuilder SetOrganization(string organization)
+        {
+            _organization = organization;
+            return this;
+        }
+
+        public ICertSubjectBuilder SetOrganizationalUnit(string organizationalUnit)
+        {
+            _organizationalUnit = organizationalUnit;
+            return this;
+        }
+
+        public ICertSubjectBuilder SetLocality(string locality)
+        {
+            _locality = locality;
+            return this;
+        }
+
+        public ICertSubjectBuilder SetState(string state)
+        {
+            _state = state;
+            return this;
+        }
+
+        public ICertSubjectBuilder SetCountry(string country)
+        {
+            _country = country;
+            return this;
+        }
+
+        public X500DistinguishedName Build()
+        {
+            EnsureParameters();
+            return new X500DistinguishedName($"CN={_commonName}, O={_organization}, OU={_organizationalUnit}, L={_locality}, ST={_state}, C={_country}");
+        }
+
+        private void EnsureParameters()
+        {
+            
+            if (string.IsNullOrWhiteSpace(_commonName))
+                _commonName = string.Empty;
+            if (string.IsNullOrWhiteSpace(_organization))
+                _organization = string.Empty;
+            if (string.IsNullOrWhiteSpace(_organizationalUnit))
+                _organizationalUnit = string.Empty;
+            if (string.IsNullOrWhiteSpace(_locality))
+                _locality = string.Empty;
+            if (string.IsNullOrWhiteSpace(_state))
+                _state = string.Empty;
+            if (string.IsNullOrWhiteSpace(_country))
+                _country = string.Empty;
+        }
+    }
 }
